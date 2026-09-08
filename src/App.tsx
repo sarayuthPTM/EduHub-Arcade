@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Gamepad2, Shield, Sparkles } from 'lucide-react';
 import { ArcadeLink, SiteSettings } from './types';
 import {
@@ -10,6 +10,7 @@ import {
 import { loadSettings, saveSettings } from './lib/settings-service';
 import { ArcadeCard } from './components/ArcadeCard';
 import { IframeViewer } from './components/IframeViewer';
+import { InteractiveToolModal } from './components/InteractiveToolModal';
 import { PinLockModal } from './components/PinLockModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminPanel } from './components/AdminPanel';
@@ -21,6 +22,7 @@ export const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ทั้งหมด');
 
   // Interactive Modals
+  const [activeInteractiveTool, setActiveInteractiveTool] = useState<ArcadeLink | null>(null);
   const [activeIframeLink, setActiveIframeLink] = useState<ArcadeLink | null>(null);
   const [lockedTargetLink, setLockedTargetLink] = useState<ArcadeLink | null>(null);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -79,7 +81,9 @@ export const App: React.FC = () => {
 
   const launchItem = (link: ArcadeLink) => {
     trackToolClick(link);
-    if (link.target === '_blank') {
+    if (link.id && link.id.startsWith('tool-')) {
+      setActiveInteractiveTool(link);
+    } else if (link.target === '_blank') {
       window.open(link.url, '_blank');
     } else {
       setActiveIframeLink(link);
@@ -248,6 +252,11 @@ export const App: React.FC = () => {
       </footer>
 
       {/* Modals & Fullscreen Iframe */}
+      <InteractiveToolModal
+        tool={activeInteractiveTool}
+        onClose={() => setActiveInteractiveTool(null)}
+      />
+
       {activeIframeLink && (
         <IframeViewer link={activeIframeLink} onClose={() => setActiveIframeLink(null)} />
       )}

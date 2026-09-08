@@ -1,9 +1,26 @@
-﻿import { ArcadeLink } from '../types';
+import { ArcadeLink } from '../types';
 import { loadSettings } from './settings-service';
+import { toolIllustrations } from './arcade-assets';
 
 const ARCADE_LINKS_KEY = 'eduhub_arcade_links';
 const USAGE_STATS_KEY = 'eduhub_arcade_usage_stats';
 const TOTAL_VISITS_KEY = 'eduhub_arcade_total_visits';
+
+export const defaultIllustrationsMap: Record<string, string> = {
+  'tool-timer': toolIllustrations.timer,
+  'tool-lottery': toolIllustrations.lottery,
+  'tool-wheel': toolIllustrations.wheel,
+  'tool-dragon-meter': toolIllustrations.dragon,
+  'tool-popsicle': toolIllustrations.popsicle,
+  'tool-race-timer': toolIllustrations.capybara,
+  'tool-group-sort': toolIllustrations.groups,
+  'tool-scoreboard': toolIllustrations.scoreboard,
+  'game-wordwall': toolIllustrations.wordwall,
+  'game-quizizz': toolIllustrations.quizizz,
+  'game-liveworksheets': toolIllustrations.liveworksheets,
+  'game-phet': toolIllustrations.phet,
+  'game-geogebra': toolIllustrations.geogebra,
+};
 
 export const defaultArcadeLinks: ArcadeLink[] = [
   // --- เครื่องมือครู (Classroom Tools from Image 2) ---
@@ -14,7 +31,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ สำหรับจับเวลากิจกรรมและนับเวลาถอยหลังในห้องเรียน',
     url: 'https://www.online-stopwatch.com/classroom-timers/',
     icon: 'timer',
-    coverImage: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.timer,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -27,7 +44,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ กรงหมุนลูกบอลสุ่มเลขที่นักเรียนเพื่อตอบคำถามอย่างยุติธรรม',
     url: 'https://www.classtools.net/fruit_machine/',
     icon: 'calculate',
-    coverImage: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.lottery,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -40,7 +57,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ วงล้อหมุนเสี่ยงทายสุ่มชื่อนักเรียน สุ่มกลุ่ม สุ่มคำถาม',
     url: 'https://wheelofnames.com/th/',
     icon: 'sports_esports',
-    coverImage: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.wheel,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -53,7 +70,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ เครื่องตรวจวัดระดับเสียงในห้องเรียนเตือนเมื่อเด็กคุยเสียงดัง',
     url: 'https://bouncyballs.org/',
     icon: 'volume_up',
-    coverImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.dragon,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -66,7 +83,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ จำลองการหยิบไม้ไอติมสุ่มชื่อตอบคำถาม ป้องกันการเลือกปฏิบัติ',
     url: 'https://www.classtools.net/random-name-picker/',
     icon: 'extension',
-    coverImage: 'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.popsicle,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -79,7 +96,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ เกมจับเวลาแข่งขันวิ่งตัวการ์ตูนกระตุ้นความตื่นเต้น',
     url: 'https://www.online-stopwatch.com/duck-race/',
     icon: 'sports_score',
-    coverImage: 'https://images.unsplash.com/photo-1564349683136-77e08dba1ef6?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.capybara,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -92,7 +109,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ ใส่รายชื่อแล้วสุ่มแบ่งกลุ่มนักเรียนทำกิจกรรมอัตโนมัติ',
     url: 'https://www.randomlists.com/team-generator',
     icon: 'group',
-    coverImage: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.groups,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -105,7 +122,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'ระบบสื่อการสอนอิเล็กทรอนิกส์ กระดานแสดงคะแนนทีมแบบสด บันทึกคะแนนแข่งขันตอบปัญหา',
     url: 'https://keepthescore.com/',
     icon: 'emoji_events',
-    coverImage: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.scoreboard,
     copyUrl: '',
     status: 'เปิด',
     target: '_self',
@@ -120,7 +137,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'สร้างเกมจับคู่ วงล้อสุ่ม แบบทดสอบ และเกมอินเตอร์แอคทีฟเล่นในห้องเรียน',
     url: 'https://wordwall.net/th',
     icon: 'sports_esports',
-    coverImage: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.wordwall,
     copyUrl: '',
     status: 'เปิด',
     target: '_blank',
@@ -133,7 +150,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'เครื่องมือสร้างแบบทดสอบออนไลน์ เล่นพร้อมกันในห้องเรียน สรุปสถิติคะแนนรายบุคคล',
     url: 'https://quizizz.com/',
     icon: 'quiz',
-    coverImage: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.quizizz,
     copyUrl: '',
     status: 'เปิด',
     target: '_blank',
@@ -146,7 +163,7 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'เปลี่ยนใบงานกระดาษเป็นใบงานโต้ตอบออนไลน์ ตรวจคะแนนและส่งให้นักเรียนทำผ่านมือถือ',
     url: 'https://www.liveworksheets.com/',
     icon: 'quiz',
-    coverImage: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.liveworksheets,
     copyUrl: '',
     status: 'เปิด',
     target: '_blank',
@@ -159,10 +176,10 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'การทดลองเสมือนจริง วิทยาศาสตร์ ฟิสิกส์ เคมี ชีววิทยา ดาราศาสตร์ และคณิตศาสตร์',
     url: 'https://phet.colorado.edu/th/',
     icon: 'science',
-    coverImage: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.phet,
     copyUrl: '',
     status: 'เปิด',
-    target: '_self',
+    target: '_blank',
     access: 'ทั่วไป',
   },
   {
@@ -172,10 +189,10 @@ export const defaultArcadeLinks: ArcadeLink[] = [
     desc: 'โปรแกรมเรขาคณิตพลวัต กราฟฟังก์ชัน พีชคณิต แคลคูลัส และสถิติสำหรับครูคณิตศาสตร์',
     url: 'https://www.geogebra.org/calculator',
     icon: 'calculate',
-    coverImage: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+    coverImage: toolIllustrations.geogebra,
     copyUrl: '',
     status: 'เปิด',
-    target: '_self',
+    target: '_blank',
     access: 'ทั่วไป',
   },
 ];
@@ -185,7 +202,16 @@ export function loadArcadeLinks(): ArcadeLink[] {
     const saved = localStorage.getItem(ARCADE_LINKS_KEY);
     if (!saved) return defaultArcadeLinks;
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultArcadeLinks;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Migrate old Unsplash images to clean vector SVG illustrations
+      return parsed.map((item) => {
+        if (item.id && defaultIllustrationsMap[item.id] && (!item.coverImage || item.coverImage.includes('unsplash.com'))) {
+          return { ...item, coverImage: defaultIllustrationsMap[item.id] };
+        }
+        return item;
+      });
+    }
+    return defaultArcadeLinks;
   } catch (e) {
     return defaultArcadeLinks;
   }

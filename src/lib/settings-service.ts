@@ -1,11 +1,12 @@
-﻿import { SiteSettings } from '../types';
+import { SiteSettings } from '../types';
+import { toolIllustrations } from './arcade-assets';
 
 const SETTINGS_KEY = 'eduhub_arcade_settings';
 
 export const defaultSettings: SiteSettings = {
   schoolName: 'โรงเรียนของฉัน',
   topbarTitle: 'EduHub Arcade 🎮',
-  logoUrl: '',
+  logoUrl: toolIllustrations.schoolLogo,
   announcement: 'ยินดีต้อนรับสู่คลังสื่อการสอนและเกมอิเล็กทรอนิกส์!',
   tickerSpeed: 25,
   footerText: '© 2026 EduHub Arcade • คลังสื่อการสอนและเกมอิเล็กทรอนิกส์สำหรับครู',
@@ -19,7 +20,12 @@ export function loadSettings(): SiteSettings {
   try {
     const saved = localStorage.getItem(SETTINGS_KEY);
     if (!saved) return defaultSettings;
-    return { ...defaultSettings, ...JSON.parse(saved) };
+    const parsed = JSON.parse(saved);
+    const merged = { ...defaultSettings, ...parsed };
+    if (!merged.logoUrl) {
+      merged.logoUrl = toolIllustrations.schoolLogo;
+    }
+    return merged;
   } catch (e) {
     return defaultSettings;
   }
