@@ -275,6 +275,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setFormSettings((prev) => ({ ...prev, categoryOrder: currentOrder }));
   };
 
+  const handleAddNewCategory = () => {
+    const name = window.prompt('ระบุชื่อหมวดหมู่ใหม่ที่ต้องการเพิ่ม:');
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+    if (categoriesInUse.includes(trimmed)) {
+      showNotice(`หมวดหมู่ "${trimmed}" มีอยู่ในระบบแล้ว`);
+      return;
+    }
+    const newOrder = [...categoriesInUse, trimmed];
+    setFormSettings((prev) => ({ ...prev, categoryOrder: newOrder }));
+    showNotice(`เพิ่มหมวดหมู่ใหม่ "${trimmed}" เรียบร้อยแล้ว!`);
+  };
+
   const handleSaveLinks = () => {
     onUpdateLinks(tableLinks);
     onUpdateSettings(formSettings);
@@ -684,7 +697,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <p className="text-xs text-slate-500 mt-0.5">เพิ่ม ลบ แก้ไข รายการสื่อที่แสดงบนหน้าเว็บ</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
                   <input
@@ -692,14 +705,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     placeholder="ค้นหาเมนู..."
-                    className="pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none w-44"
+                    className="pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none w-36 sm:w-44"
                   />
                 </div>
                 <button
                   onClick={handleAddLink}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm cursor-pointer active:scale-95"
                 >
                   <Plus className="h-3.5 w-3.5" /> เพิ่มสื่อใหม่
+                </button>
+                <button
+                  onClick={handleSaveLinks}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer hover:shadow-md active:scale-95"
+                  title="บันทึกข้อมูลตารางสื่อทั้งหมด"
+                >
+                  <Save className="h-4 w-4" /> 💾 บันทึกตารางสื่อทั้งหมด
                 </button>
               </div>
             </div>
@@ -721,21 +741,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                {categoriesInUse.length >= 2 && (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const reversed = [...categoriesInUse].reverse();
-                      setFormSettings((prev) => ({ ...prev, categoryOrder: reversed }));
-                      showNotice(`สลับลำดับหมวดหมู่เรียบร้อยแล้ว: ${reversed.join(' → ')}`);
-                    }}
-                    className="self-start sm:self-auto text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
-                    title="สลับหมวดหมู่อยู่ก่อน-อยู่หลังทันที"
+                    onClick={handleAddNewCategory}
+                    className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1 cursor-pointer"
+                    title="เพิ่มหมวดหมู่ใหม่"
                   >
-                    <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>สลับลำดับหมวดหมู่</span>
+                    <Plus className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>เพิ่มหมวดหมู่ใหม่</span>
                   </button>
-                )}
+
+                  {categoriesInUse.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const reversed = [...categoriesInUse].reverse();
+                        setFormSettings((prev) => ({ ...prev, categoryOrder: reversed }));
+                        showNotice(`สลับลำดับหมวดหมู่เรียบร้อยแล้ว: ${reversed.join(' → ')}`);
+                      }}
+                      className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      title="สลับหมวดหมู่อยู่ก่อน-อยู่หลังทันที"
+                    >
+                      <ArrowUpDown className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>สลับลำดับหมวดหมู่</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Category Badges with Arrow Buttons */}
@@ -769,6 +801,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       >
                         <ChevronRight className="h-3.5 w-3.5" />
                       </button>
+                      {cat !== 'เครื่องมือครู' && cat !== 'เกมเพื่อการเรียนรู้' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`ยืนยันการลบหมวดหมู่ "${cat}" หรือไม่? (รายการที่อยู่ในหมวดนี้จะถูกเปลี่ยนเป็น "เครื่องมือครู")`)) {
+                              setFormSettings((prev) => ({
+                                ...prev,
+                                categoryOrder: (prev.categoryOrder || []).filter((c) => c !== cat),
+                              }));
+                              setTableLinks((prev) =>
+                                prev.map((l) => (l.category === cat ? { ...l, category: 'เครื่องมือครู' } : l))
+                              );
+                              showNotice(`ลบหมวดหมู่ "${cat}" เรียบร้อยแล้ว`);
+                            }
+                          }}
+                          className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                          title="ลบหมวดหมู่นี้"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -856,14 +909,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                         </td>
 
-                        <td className="p-2.5">
-                        <input
-                          type="text"
-                          value={item.category}
-                          onChange={(e) => handleUpdateRow(item.id, { category: e.target.value })}
-                          className="w-full p-2 border border-slate-300 rounded-lg text-xs"
-                        />
-                      </td>
+                        <td className="p-2.5 min-w-[160px]">
+                          <select
+                            value={item.category || (categoriesInUse[0] || 'เครื่องมือครู')}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '__ADD_NEW__') {
+                                const newCat = window.prompt('ระบุชื่อหมวดหมู่ใหม่:');
+                                if (newCat && newCat.trim()) {
+                                  const trimmed = newCat.trim();
+                                  if (!categoriesInUse.includes(trimmed)) {
+                                    setFormSettings((prev) => ({
+                                      ...prev,
+                                      categoryOrder: [...categoriesInUse, trimmed],
+                                    }));
+                                  }
+                                  handleUpdateRow(item.id, { category: trimmed });
+                                  showNotice(`เพิ่มหมวดหมู่ "${trimmed}" และเลือกให้รายการนี้เรียบร้อยแล้ว!`);
+                                }
+                              } else {
+                                handleUpdateRow(item.id, { category: val });
+                              }
+                            }}
+                            className="w-full p-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                          >
+                            {item.category && !categoriesInUse.includes(item.category) && (
+                              <option value={item.category}>{item.category}</option>
+                            )}
+                            {categoriesInUse.map((cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                            <option value="__ADD_NEW__" className="text-indigo-600 font-bold bg-indigo-50">
+                              ➕ + เพิ่มหมวดหมู่ใหม่...
+                            </option>
+                          </select>
+                        </td>
 
                       <td className="p-2.5 space-y-1">
                         <input
@@ -1080,18 +1162,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label className="block text-xs font-bold text-slate-700">
                     🏷️ ลำดับการแสดงผลหมวดหมู่บนหน้าแรก (Category Display Order)
                   </label>
-                  {categoriesInUse.length >= 2 && (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const reversed = [...categoriesInUse].reverse();
-                        setFormSettings((prev) => ({ ...prev, categoryOrder: reversed }));
-                      }}
+                      onClick={handleAddNewCategory}
                       className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                     >
-                      <ArrowUpDown className="h-3 w-3" /> สลับลำดับ
+                      <Plus className="h-3 w-3" /> เพิ่มหมวดหมู่
                     </button>
-                  )}
+                    {categoriesInUse.length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const reversed = [...categoriesInUse].reverse();
+                          setFormSettings((prev) => ({ ...prev, categoryOrder: reversed }));
+                        }}
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                      >
+                        <ArrowUpDown className="h-3 w-3" /> สลับลำดับ
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {categoriesInUse.map((cat, idx) => (
