@@ -10,10 +10,25 @@ import {
   Upload,
   LogOut,
   CheckCircle2,
+  RotateCcw,
+  Download,
+  Eye,
+  Trophy,
+  PlayCircle,
+  Gamepad2,
+  PieChart as PieChartIcon,
+  Clock,
+  TrendingUp,
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import { ArcadeLink, SiteSettings } from '../types';
-import { getToolStats, getTotalVisits } from '../lib/arcade-service';
+import {
+  getToolStats,
+  getTotalVisits,
+  getTotalToolLaunches,
+  getRecentLogs,
+  resetAllStats,
+} from '../lib/arcade-service';
 
 Chart.register(...registerables);
 
@@ -39,8 +54,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [formSettings, setFormSettings] = useState<SiteSettings>(settings);
   const [searchFilter, setSearchFilter] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
+  const [statsTimestamp, setStatsTimestamp] = useState(Date.now());
+
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
+  const doughnutRef = useRef<HTMLCanvasElement | null>(null);
+  const doughnutInstance = useRef<Chart | null>(null);
 
   useEffect(() => {
     setTableLinks(links);
@@ -50,51 +69,103 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setFormSettings(settings);
   }, [settings]);
 
-  // Render Bar Chart on Dashboard
+  // Render Bar Chart & Doughnut Chart on Dashboard
   useEffect(() => {
-    if (activeTab === 'dashboard' && chartRef.current) {
+    if (activeTab === 'dashboard') {
       const stats = getToolStats();
       const labels = Object.keys(stats);
       const data = Object.values(stats);
 
-      if (chartInstance.current) {
-        chartInstance.current.destroy();
+      // 1. Tool Popularity Bar Chart
+      if (chartRef.current) {
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        chartInstance.current = new Chart(chartRef.current, {
+          type: 'bar',
+          data: {
+            labels: labels.length > 0 ? labels : ['ยังไม่มีสถิติ'],
+            datasets: [
+              {
+                label: 'จำนวนครั้งที่เข้าใช้งาน',
+                data: data.length > 0 ? data : [0],
+                backgroundColor: '#6366f1',
+                borderRadius: 8,
+                hoverBackgroundColor: '#4f46e5',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ใช้งาน: ${ctx.parsed.y} ครั้ง`,
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: '#64748b' },
+                grid: { color: '#f1f5f9' },
+              },
+              x: {
+                ticks: { color: '#64748b', font: { family: 'Prompt', size: 11 } },
+                grid: { display: false },
+              },
+            },
+          },
+        });
       }
 
-      chartInstance.current = new Chart(chartRef.current, {
-        type: 'bar',
-        data: {
-          labels: labels.length > 0 ? labels : ['ยังไม่มีสถิติ'],
-          datasets: [
-            {
-              label: 'จำนวนครั้งที่เข้าใช้งาน',
-              data: data.length > 0 ? data : [0],
-              backgroundColor: '#4f46e5',
-              borderRadius: 8,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
+      // 2. Category Share Doughnut Chart
+      if (doughnutRef.current) {
+        if (doughnutInstance.current) {
+          doughnutInstance.current.destroy();
+        }
+
+        const categoryCounts: Record<string, number> = {};
+        links.forEach((l) => {
+          const cat = l.category || 'ทั่วไป';
+          categoryCounts[cat] = (categoryCounts[cat] || 0) + (stats[l.name] || 0);
+        });
+
+        const catLabels = Object.keys(categoryCounts);
+        const catValues = Object.values(categoryCounts);
+        const hasValues = catValues.some((v) => v > 0);
+
+        doughnutInstance.current = new Chart(doughnutRef.current, {
+          type: 'doughnut',
+          data: {
+            labels: hasValues ? catLabels : ['ยังไม่มีข้อมูล'],
+            datasets: [
+              {
+                data: hasValues ? catValues : [1],
+                backgroundColor: hasValues ? ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'] : ['#e2e8f0'],
+                borderWidth: 2,
+                borderColor: '#ffffff',
+              },
+            ],
           },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { stepSize: 1, color: '#64748b' },
-              grid: { color: '#f1f5f9' },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { family: 'Prompt', size: 11 }, boxWidth: 12 },
+              },
             },
-            x: {
-              ticks: { color: '#64748b', font: { family: 'Prompt' } },
-              grid: { display: false },
-            },
+            cutout: '65%',
           },
-        },
-      });
+        });
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, statsTimestamp, links]);
 
   if (!isOpen) return null;
 
@@ -156,7 +227,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const stats = getToolStats();
   const totalVisits = getTotalVisits();
-  const topTool = Object.entries(stats).sort((a, b) => b[1] - a[1])[0]?.[0] || 'ยังไม่มีข้อมูล';
+  const totalToolLaunches = getTotalToolLaunches();
+  const recentLogs = getRecentLogs();
+  const topToolEntry = Object.entries(stats).sort((a, b) => b[1] - a[1])[0];
+  const topTool = topToolEntry?.[0] || 'ยังไม่มีข้อมูล';
+  const topToolCount = topToolEntry?.[1] || 0;
+
+  const totalLinksCount = links.length;
+  const classroomCount = links.filter((l) => l.category === 'เครื่องมือครู').length;
+  const gamesCount = links.filter((l) => l.category === 'เกมเพื่อการเรียนรู้').length;
+
+  const rankedTools = Object.entries(stats)
+    .map(([name, count]) => {
+      const link = links.find((l) => l.name === name);
+      const category = link?.category || 'ทั่วไป';
+      const percentage = totalToolLaunches > 0 ? Math.round((count / totalToolLaunches) * 100) : 0;
+      return { name, category, count, percentage };
+    })
+    .sort((a, b) => b.count - a.count);
+
+  const handleExportCSV = () => {
+    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF';
+    csvContent += 'ลำดับ,ชื่อสื่อและเกม,หมวดหมู่,จำนวนครั้งที่เปิดใช้งาน,สัดส่วน (%)\n';
+    rankedTools.forEach((tool, idx) => {
+      csvContent += `${idx + 1},"${tool.name}","${tool.category}",${tool.count},${tool.percentage}%\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `EduHub_Arcade_สถิติการใช้งาน_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showNotice('ดาวน์โหลดรายงานสถิติเป็นไฟล์ CSV เรียบร้อยแล้ว!');
+  };
+
+  const handleResetStats = () => {
+    if (confirm('ยืนยันการรีเซ็ตสถิติทั้งหมด? ข้อมูลการเข้าชมและการเปิดสื่อจะถูกเริ่มนับ 1 ใหม่')) {
+      resetAllStats();
+      setStatsTimestamp(Date.now());
+      showNotice('รีเซ็ตข้อมูลสถิติเรียบร้อยแล้ว!');
+    }
+  };
 
   const filteredLinks = tableLinks.filter((item) => {
     if (!searchFilter.trim()) return true;
@@ -239,24 +351,247 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* Tab 1: Dashboard */}
         {activeTab === 'dashboard' && (
           <section className="space-y-6">
-            <h3 className="text-2xl font-bold text-slate-800">สถิติการใช้งานระบบ</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 border-l-4 border-l-indigo-600">
-                <div className="text-xs font-semibold text-slate-500 mb-1">การเข้าใช้งานรวมทั้งหมด</div>
-                <div className="text-4xl font-extrabold text-slate-800">{totalVisits.toLocaleString()}</div>
+            {/* Header & Controls Toolbar */}
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-indigo-600" />
+                  สถิติการใช้งานระบบ (System Analytics)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  รายงานภาพรวมการเข้าใช้งานสื่อและเกมการศึกษาในโรงเรียน
+                </p>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-600">
-                <div className="text-xs font-semibold text-slate-500 mb-1">ระบบยอดนิยมอันดับ 1</div>
-                <div className="text-2xl font-extrabold text-slate-800 truncate mt-1">{topTool}</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatsTimestamp(Date.now());
+                    showNotice('อัปเดตสถิติล่าสุดแล้ว');
+                  }}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                  title="รีเฟรชข้อมูล"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
+                  <span>รีเฟรช</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  disabled={rankedTools.length === 0}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition disabled:opacity-50"
+                  title="ส่งออกเป็น Excel / CSV"
+                >
+                  <Download className="h-3.5 w-3.5 text-indigo-600" />
+                  <span>ส่งออก CSV</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetStats}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                  title="รีเซ็ตสถิติ"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                  <span>รีเซ็ตสถิติ</span>
+                </button>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <h4 className="font-bold text-base text-slate-700 mb-4">กราฟความนิยมการใช้งานสื่อ</h4>
-              <div className="h-72 w-full">
-                <canvas ref={chartRef} />
+            {/* 4 Summary KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Total Visits */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 border-l-4 border-l-sky-500 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">การเข้าชมเว็บรวม</span>
+                  <div className="text-3xl font-black text-slate-800">{totalVisits.toLocaleString()}</div>
+                  <span className="text-[11px] text-sky-600 font-medium">ครั้งที่เปิดเข้าใช้งาน</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600">
+                  <Eye className="h-6 w-6" />
+                </div>
+              </div>
+
+              {/* Card 2: Total Tool Launches */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 border-l-4 border-l-indigo-600 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">เปิดใช้งานสื่อทั้งหมด</span>
+                  <div className="text-3xl font-black text-slate-800">{totalToolLaunches.toLocaleString()}</div>
+                  <span className="text-[11px] text-indigo-600 font-medium">รอบการเล่น/ใช้เครื่องมือ</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                  <PlayCircle className="h-6 w-6" />
+                </div>
+              </div>
+
+              {/* Card 3: Top Tool */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 border-l-4 border-l-amber-500 flex items-center justify-between">
+                <div className="min-w-0 flex-1 pr-2">
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">ระบบยอดนิยมอันดับ 1</span>
+                  <div className="text-lg font-black text-slate-800 truncate" title={topTool}>
+                    {topTool}
+                  </div>
+                  <span className="text-[11px] text-amber-600 font-bold">
+                    {topToolCount > 0 ? `ใช้งานไปแล้ว ${topToolCount} ครั้ง` : 'ยังไม่มีสถิติ'}
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shrink-0">
+                  <Trophy className="h-6 w-6" />
+                </div>
+              </div>
+
+              {/* Card 4: Total Media Items */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 border-l-4 border-l-emerald-500 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-500 block mb-1">คลังสื่อและเกมในระบบ</span>
+                  <div className="text-3xl font-black text-slate-800">{totalLinksCount}</div>
+                  <span className="text-[11px] text-emerald-600 font-medium">
+                    เครื่องมือครู {classroomCount} • เกม {gamesCount}
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                  <Gamepad2 className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+
+            {/* Charts Section: Bar Chart & Doughnut Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Bar Chart (2 cols) */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-indigo-600" />
+                    <h4 className="font-bold text-sm text-slate-800">กราฟความนิยมการใช้งานสื่อ</h4>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">แยกตามจำนวนครั้งที่กดใช้งาน</span>
+                </div>
+                <div className="h-72 w-full">
+                  <canvas ref={chartRef} />
+                </div>
+              </div>
+
+              {/* Doughnut Chart (1 col) */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <PieChartIcon className="h-4 w-4 text-indigo-600" />
+                    <h4 className="font-bold text-sm text-slate-800">สัดส่วนตามหมวดหมู่</h4>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">หมวดหมู่สื่อ</span>
+                </div>
+                <div className="h-64 w-full flex-1 flex items-center justify-center">
+                  <canvas ref={doughnutRef} />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom 2 Columns: Leaderboard & Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Leaderboard Table */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h4 className="font-bold text-sm text-slate-800 mb-4 flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  ตารางจัดอันดับสื่อที่มีผู้ใช้งานสูงสุด
+                </h4>
+                
+                {rankedTools.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-semibold pb-2">
+                          <th className="pb-2 w-12 text-center">อันดับ</th>
+                          <th className="pb-2">ชื่อสื่อ / เกม</th>
+                          <th className="pb-2">หมวดหมู่</th>
+                          <th className="pb-2 text-right">จำนวนครั้ง</th>
+                          <th className="pb-2 w-28 pl-4">สัดส่วน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {rankedTools.slice(0, 8).map((tool, idx) => (
+                          <tr key={tool.name} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-2.5 text-center font-bold">
+                              {idx === 0 && <span className="text-amber-500">🥇 1</span>}
+                              {idx === 1 && <span className="text-slate-400">🥈 2</span>}
+                              {idx === 2 && <span className="text-amber-700">🥉 3</span>}
+                              {idx > 2 && <span className="text-slate-400 font-medium">{idx + 1}</span>}
+                            </td>
+                            <td className="py-2.5 font-bold text-slate-800 truncate max-w-[150px]">
+                              {tool.name}
+                            </td>
+                            <td className="py-2.5 text-slate-500">
+                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-semibold">
+                                {tool.category}
+                              </span>
+                            </td>
+                            <td className="py-2.5 text-right font-black text-indigo-600">
+                              {tool.count.toLocaleString()}
+                            </td>
+                            <td className="py-2.5 pl-4">
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                  <div
+                                    className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${tool.percentage}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-slate-400 w-7 text-right font-medium">
+                                  {tool.percentage}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    ยังไม่มีข้อมูลการเข้าใช้งานสื่อ
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Activity Log Feed */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h4 className="font-bold text-sm text-slate-800 mb-4 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-indigo-500" />
+                  ประวัติการเข้าใช้งานล่าสุด (Recent Activity)
+                </h4>
+
+                {recentLogs.length > 0 ? (
+                  <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                    {recentLogs.slice(0, 8).map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs hover:bg-indigo-50/50 hover:border-indigo-100 transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/10 text-indigo-600 font-bold text-sm">
+                            🎮
+                          </span>
+                          <div>
+                            <span className="font-bold text-slate-800 block">{log.toolName}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              หมวดหมู่: {log.category}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="font-mono text-slate-600 font-bold block">{log.time}</span>
+                          <span className="text-[10px] text-slate-400">{log.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-xs">
+                    ยังไม่มีบันทึกประวัติการใช้งาน
+                  </div>
+                )}
               </div>
             </div>
           </section>

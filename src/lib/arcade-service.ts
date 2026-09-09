@@ -5,6 +5,15 @@ import { toolIllustrations } from './arcade-assets';
 const ARCADE_LINKS_KEY = 'eduhub_arcade_links';
 const USAGE_STATS_KEY = 'eduhub_arcade_usage_stats';
 const TOTAL_VISITS_KEY = 'eduhub_arcade_total_visits';
+const RECENT_LOGS_KEY = 'eduhub_arcade_recent_logs';
+
+export interface ActivityLog {
+  id: string;
+  toolName: string;
+  category: string;
+  time: string;
+  date: string;
+}
 
 export const defaultIllustrationsMap: Record<string, string> = {
   'tool-timer': toolIllustrations.timer,
@@ -263,6 +272,20 @@ export function trackToolClick(link: ArcadeLink): void {
     stats[link.name] = (stats[link.name] || 0) + 1;
     localStorage.setItem(USAGE_STATS_KEY, JSON.stringify(stats));
 
+    // Save recent activity log (last 30 actions)
+    const savedLogs = localStorage.getItem(RECENT_LOGS_KEY);
+    const logs: ActivityLog[] = savedLogs ? JSON.parse(savedLogs) : [];
+    const now = new Date();
+    const newLog: ActivityLog = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      toolName: link.name,
+      category: link.category || 'ทั่วไป',
+      time: now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      date: now.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
+    };
+    logs.unshift(newLog);
+    localStorage.setItem(RECENT_LOGS_KEY, JSON.stringify(logs.slice(0, 30)));
+
     // Send to cloud
     const settings = loadSettings();
     if (settings.googleSheetsWebhookUrl) {
@@ -288,6 +311,28 @@ export function getToolStats(): Record<string, number> {
   } catch (e) {
     return {};
   }
+}
+
+export function getRecentLogs(): ActivityLog[] {
+  try {
+    const saved = localStorage.getItem(RECENT_LOGS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function getTotalToolLaunches(): number {
+  const stats = getToolStats();
+  return Object.values(stats).reduce((sum, val) => sum + val, 0);
+}
+
+export function resetAllStats(): void {
+  try {
+    localStorage.removeItem(USAGE_STATS_KEY);
+    localStorage.removeItem(TOTAL_VISITS_KEY);
+    localStorage.removeItem(RECENT_LOGS_KEY);
+  } catch (e) {}
 }
 
 export function incrementTotalVisits(): number {
