@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
 import { ArcadeLink } from '../types';
 
@@ -9,6 +9,13 @@ interface IframeViewerProps {
 
 export const IframeViewer: React.FC<IframeViewerProps> = ({ link, onClose }) => {
   const [isLoading, setIsLoading] = useState(true);
+
+  const formattedUrl = React.useMemo(() => {
+    const raw = (link.url || '').trim();
+    if (!raw) return '';
+    if (/^(https?:\/\/|\/|#|mailto:|tel:)/i.test(raw)) return raw;
+    return `https://${raw}`;
+  }, [link.url]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-950">
@@ -29,8 +36,8 @@ export const IframeViewer: React.FC<IframeViewerProps> = ({ link, onClose }) => 
 
       <div className="absolute top-4 right-4 z-20">
         <button
-          onClick={() => window.open(link.url, '_blank')}
-          className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white px-3.5 py-2 rounded-full text-xs font-semibold border border-slate-700 backdrop-blur-md transition shadow-xl"
+          onClick={() => window.open(formattedUrl, '_blank', 'noopener,noreferrer')}
+          className="flex items-center gap-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white px-3.5 py-2 rounded-full text-xs font-semibold border border-slate-700 backdrop-blur-md transition shadow-xl cursor-pointer"
           title="เปิดในหน้าต่างใหม่"
         >
           <ExternalLink className="h-3.5 w-3.5" />
@@ -49,7 +56,7 @@ export const IframeViewer: React.FC<IframeViewerProps> = ({ link, onClose }) => 
 
       {/* Iframe */}
       <iframe
-        src={link.url}
+        src={formattedUrl}
         title={link.name}
         onLoad={() => setIsLoading(false)}
         className="w-full h-full border-none bg-white"

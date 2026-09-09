@@ -1,4 +1,4 @@
-﻿export interface ArcadeLink {
+export interface ArcadeLink {
   id: string;
   category: string;
   name: string;
@@ -23,6 +23,7 @@ export interface SiteSettings {
   adminPin: string;
   userPin: string;
   googleSheetsWebhookUrl?: string;
+  categoryOrder?: string[];
 }
 
 export interface ActivityStat {

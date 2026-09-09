@@ -14,6 +14,7 @@ export const defaultSettings: SiteSettings = {
   adminPin: '1234',
   userPin: '9999',
   googleSheetsWebhookUrl: '',
+  categoryOrder: ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้'],
 };
 
 export function loadSettings(): SiteSettings {
@@ -24,6 +25,9 @@ export function loadSettings(): SiteSettings {
     const merged = { ...defaultSettings, ...parsed };
     if (!merged.logoUrl) {
       merged.logoUrl = toolIllustrations.schoolLogo;
+    }
+    if (!merged.categoryOrder || !Array.isArray(merged.categoryOrder) || merged.categoryOrder.length === 0) {
+      merged.categoryOrder = ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้'];
     }
     return merged;
   } catch (e) {

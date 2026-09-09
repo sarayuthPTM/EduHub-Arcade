@@ -40,8 +40,19 @@ export const App: React.FC = () => {
         map.set(cat, (map.get(cat) || 0) + 1);
       }
     });
-    return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
-  }, [links]);
+
+    const order = settings.categoryOrder || ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้'];
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => {
+        const idxA = order.indexOf(a.name);
+        const idxB = order.indexOf(b.name);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [links, settings.categoryOrder]);
 
   const groupedLinks = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -64,8 +75,22 @@ export const App: React.FC = () => {
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(item);
     });
-    return groups;
-  }, [links, selectedCategory, searchQuery]);
+
+    const order = settings.categoryOrder || ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้'];
+    const sortedGroups: Record<string, ArcadeLink[]> = {};
+    order.forEach((cat) => {
+      if (groups[cat]) {
+        sortedGroups[cat] = groups[cat];
+      }
+    });
+    Object.keys(groups).forEach((cat) => {
+      if (!sortedGroups[cat]) {
+        sortedGroups[cat] = groups[cat];
+      }
+    });
+
+    return sortedGroups;
+  }, [links, selectedCategory, searchQuery, settings.categoryOrder]);
 
   const totalCount = useMemo(() => {
     return Object.values(groupedLinks).reduce((sum, list) => sum + list.length, 0);
@@ -79,14 +104,48 @@ export const App: React.FC = () => {
     }
   };
 
+  const formatUrl = (url?: string) => {
+    if (!url) return '';
+    const trimmed = url.trim();
+    if (/^(https?:\/\/|\/|#|mailto:|tel:)/i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const launchItem = (link: ArcadeLink) => {
     trackToolClick(link);
-    if (link.id && link.id.startsWith('tool-')) {
+
+    const targetUrl = formatUrl(link.url);
+    const linkWithFormattedUrl = { ...link, url: targetUrl };
+
+    // 1. If target is _blank: ALWAYS open in a new tab with the link's URL!
+    if (link.target === '_blank') {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 2. If target is _self:
+    // Only open the built-in interactive tool modal if it is one of the built-in IDs
+    // AND the URL has NOT been customized by the user!
+    const defaultToolUrls = [
+      'https://www.online-stopwatch.com/classroom-timers/',
+      'https://www.classtools.net/fruit_machine/',
+      'https://wheelofnames.com/th/',
+      'https://bouncyballs.org/',
+      'https://www.classtools.net/random-name-picker/',
+      'https://www.online-stopwatch.com/duck-race/',
+      'https://www.randomlists.com/team-generator',
+      'https://keepthescore.com/',
+    ];
+
+    const isUnchangedDefaultTool =
+      link.id &&
+      link.id.startsWith('tool-') &&
+      (!link.url || defaultToolUrls.includes(link.url.trim()));
+
+    if (isUnchangedDefaultTool) {
       setActiveInteractiveTool(link);
-    } else if (link.target === '_blank') {
-      window.open(link.url, '_blank');
     } else {
-      setActiveIframeLink(link);
+      setActiveIframeLink(linkWithFormattedUrl);
     }
   };
 
