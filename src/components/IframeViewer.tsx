@@ -10,12 +10,12 @@ interface IframeViewerProps {
 export const IframeViewer: React.FC<IframeViewerProps> = ({ link, onClose }) => {
   const [isLoading, setIsLoading] = useState(true);
 
-  const formattedUrl = React.useMemo(() => {
-    const raw = (link.url || '').trim();
-    if (!raw) return '';
-    if (/^(https?:\/\/|\/|#|mailto:|tel:)/i.test(raw)) return raw;
-    return `https://${raw}`;
-  }, [link.url]);
+  const raw = (link.url || '').trim();
+  const formattedUrl = !raw
+    ? ''
+    : /^(https?:\/\/|\/|#|mailto:|tel:)/i.test(raw)
+    ? raw
+    : `https://${raw}`;
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-950">

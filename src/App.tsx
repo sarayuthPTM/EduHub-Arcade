@@ -344,14 +344,16 @@ export const App: React.FC = () => {
         }}
       />
 
-      <AdminPanel
-        isOpen={isAdminPanelOpen}
-        onClose={() => setIsAdminPanelOpen(false)}
-        links={links}
-        onUpdateLinks={handleUpdateLinks}
-        settings={settings}
-        onUpdateSettings={handleUpdateSettings}
-      />
+      {isAdminPanelOpen && (
+        <AdminPanel
+          isOpen={isAdminPanelOpen}
+          onClose={() => setIsAdminPanelOpen(false)}
+          links={links}
+          onUpdateLinks={handleUpdateLinks}
+          settings={settings}
+          onUpdateSettings={handleUpdateSettings}
+        />
+      )}
     </div>
   );
 };

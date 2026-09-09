@@ -252,7 +252,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setDragOverId(null);
   };
 
-  const categoriesInUse = React.useMemo(() => {
+  const categoriesInUse = (() => {
     const set = new Set<string>();
     (formSettings.categoryOrder || ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้']).forEach((c) => {
       if (c && c.trim()) set.add(c.trim());
@@ -261,7 +261,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (l.category && l.category.trim()) set.add(l.category.trim());
     });
     return Array.from(set);
-  }, [formSettings.categoryOrder, tableLinks]);
+  })();
 
   const moveCategory = (categoryName: string, direction: 'left' | 'right') => {
     const currentOrder = [...categoriesInUse];
