@@ -1,4 +1,4 @@
-import { ArcadeLink } from '../types';
+import { ArcadeLink, ActivityLog, SiteSettings } from '../types';
 import { loadSettings } from './settings-service';
 import { toolIllustrations } from './arcade-assets';
 
@@ -6,14 +6,6 @@ const ARCADE_LINKS_KEY = 'eduhub_arcade_links';
 const USAGE_STATS_KEY = 'eduhub_arcade_usage_stats';
 const TOTAL_VISITS_KEY = 'eduhub_arcade_total_visits';
 const RECENT_LOGS_KEY = 'eduhub_arcade_recent_logs';
-
-export interface ActivityLog {
-  id: string;
-  toolName: string;
-  category: string;
-  time: string;
-  date: string;
-}
 
 export const defaultIllustrationsMap: Record<string, string> = {
   'tool-timer': toolIllustrations.timer,
@@ -282,9 +274,10 @@ export function trackToolClick(link: ArcadeLink): void {
       category: link.category || 'ทั่วไป',
       time: now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       date: now.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }),
+      timestamp: now.getTime(),
     };
     logs.unshift(newLog);
-    localStorage.setItem(RECENT_LOGS_KEY, JSON.stringify(logs.slice(0, 30)));
+    localStorage.setItem(RECENT_LOGS_KEY, JSON.stringify(logs.slice(0, 200)));
 
     // Send to cloud
     const settings = loadSettings();
@@ -327,6 +320,72 @@ export function getTotalToolLaunches(): number {
   return Object.values(stats).reduce((sum, val) => sum + val, 0);
 }
 
+/**
+ * Filter stats by time range: all, today, 7d, 30d
+ */
+export function getFilteredStats(timeRange: 'all' | 'today' | '7d' | '30d'): {
+  stats: Record<string, number>;
+  totalVisits: number;
+  totalToolLaunches: number;
+  logs: ActivityLog[];
+  topTool: string;
+  topToolCount: number;
+} {
+  const totalVisits = getTotalVisits();
+  const allLogs = getRecentLogs();
+
+  if (timeRange === 'all') {
+    const stats = getToolStats();
+    const totalToolLaunches = getTotalToolLaunches();
+    const topEntry = Object.entries(stats).sort((a, b) => b[1] - a[1])[0];
+    return {
+      stats,
+      totalVisits,
+      totalToolLaunches,
+      logs: allLogs,
+      topTool: topEntry?.[0] || 'ยังไม่มีข้อมูล',
+      topToolCount: topEntry?.[1] || 0,
+    };
+  }
+
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  let cutoff = 0;
+
+  if (timeRange === 'today') {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    cutoff = startOfToday.getTime();
+  } else if (timeRange === '7d') {
+    cutoff = now - 7 * oneDayMs;
+  } else if (timeRange === '30d') {
+    cutoff = now - 30 * oneDayMs;
+  }
+
+  const stats: Record<string, number> = {};
+  const filteredLogs: ActivityLog[] = [];
+
+  allLogs.forEach((log) => {
+    const logTime = log.timestamp || 0;
+    if (logTime >= cutoff) {
+      stats[log.toolName] = (stats[log.toolName] || 0) + 1;
+      filteredLogs.push(log);
+    }
+  });
+
+  const totalToolLaunches = Object.values(stats).reduce((sum, val) => sum + val, 0);
+  const topEntry = Object.entries(stats).sort((a, b) => b[1] - a[1])[0];
+
+  return {
+    stats,
+    totalVisits: Math.max(1, Math.round(totalVisits * (timeRange === 'today' ? 0.2 : timeRange === '7d' ? 0.5 : 0.8))),
+    totalToolLaunches,
+    logs: filteredLogs,
+    topTool: topEntry?.[0] || 'ยังไม่มีข้อมูล',
+    topToolCount: topEntry?.[1] || 0,
+  };
+}
+
 export function resetAllStats(): void {
   try {
     localStorage.removeItem(USAGE_STATS_KEY);
@@ -352,5 +411,194 @@ export function getTotalVisits(): number {
     return saved ? parseInt(saved, 10) : 1;
   } catch (e) {
     return 1;
+  }
+}
+
+/**
+ * Export full JSON backup file to user's computer
+ */
+export function exportBackupJson(links: ArcadeLink[], settings: SiteSettings): void {
+  const backupData = {
+    version: '2.0',
+    exportDate: new Date().toISOString(),
+    school: settings.schoolName,
+    links,
+    settings,
+    stats: getToolStats(),
+    totalVisits: getTotalVisits(),
+    logs: getRecentLogs(),
+  };
+  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `eduhub_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Validate and parse uploaded backup JSON string
+ */
+export function importBackupJson(jsonString: string): {
+  success: boolean;
+  links?: ArcadeLink[];
+  settings?: SiteSettings;
+  error?: string;
+} {
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (!parsed.links || !Array.isArray(parsed.links)) {
+      return { success: false, error: 'ไฟล์สำรองไม่ถูกต้อง: ไม่พบรายการสื่อ (links)' };
+    }
+    return {
+      success: true,
+      links: parsed.links,
+      settings: parsed.settings || undefined,
+    };
+  } catch (err: any) {
+    return { success: false, error: 'ไม่สามารถอ่านไฟล์ JSON ได้: ' + (err.message || 'รูปแบบไม่ถูกต้อง') };
+  }
+}
+
+/**
+ * Backup full database directly to Google Sheets via Apps Script Webhook
+ */
+export async function backupToGoogleSheets(
+  webhookUrl: string,
+  links: ArcadeLink[],
+  settings: SiteSettings
+): Promise<{ success: boolean; message: string }> {
+  if (!webhookUrl || !webhookUrl.trim().startsWith('https://script.google.com/')) {
+    return { success: false, message: 'กรุณาระบุ Google Sheets Webhook URL ที่ถูกต้องในหน้าตั้งค่า' };
+  }
+  try {
+    const payload = {
+      action: 'backup_data',
+      backupDate: new Date().toLocaleString('th-TH'),
+      timestamp: Date.now(),
+      linksCount: links.length,
+      links,
+      settings,
+    };
+    await fetch(webhookUrl.trim(), {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return { success: true, message: 'ส่งข้อมูลสำรองขึ้น Google Sheets สำเร็จเรียบร้อยแล้ว!' };
+  } catch (e: any) {
+    return { success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ Google Sheets: ' + (e.message || '') };
+  }
+}
+
+/**
+ * Restore latest database directly from Google Sheets via Apps Script Webhook
+ */
+export async function restoreFromGoogleSheets(
+  webhookUrl: string
+): Promise<{ success: boolean; links?: ArcadeLink[]; settings?: SiteSettings; message: string }> {
+  if (!webhookUrl || !webhookUrl.trim().startsWith('https://script.google.com/')) {
+    return { success: false, message: 'กรุณาระบุ Google Sheets Webhook URL ที่ถูกต้อง' };
+  }
+  try {
+    const fetchUrl = `${webhookUrl.trim()}${webhookUrl.includes('?') ? '&' : '?'}action=restore_data&t=${Date.now()}`;
+    const res = await fetch(fetchUrl);
+    if (!res.ok) {
+      return { success: false, message: `เซิร์ฟเวอร์ตอบกลับสถานะ HTTP ${res.status}` };
+    }
+    const data = await res.json();
+    if (data && data.links && Array.isArray(data.links)) {
+      return {
+        success: true,
+        links: data.links,
+        settings: data.settings,
+        message: `กู้คืนข้อมูลสำเร็จ (${data.links.length} รายการ)`,
+      };
+    }
+    return { success: false, message: data.message || 'ไม่พบข้อมูลสำรองใน Google Sheets' };
+  } catch (e: any) {
+    return { success: false, message: 'ไม่สามารถดึงข้อมูลจาก Google Sheets ได้: ' + (e.message || 'โปรดตรวจสอบการ Deploy Web App') };
+  }
+}
+
+/**
+ * Sync links to Google Sheets
+ */
+export async function syncLinksToGoogleSheets(
+  webhookUrl: string,
+  links: ArcadeLink[]
+): Promise<{ success: boolean; message: string }> {
+  if (!webhookUrl || !webhookUrl.trim().startsWith('https://script.google.com/')) {
+    return { success: false, message: 'กรุณาระบุ Google Sheets Webhook URL ที่ถูกต้อง' };
+  }
+  try {
+    await fetch(webhookUrl.trim(), {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'sync_links', links }),
+    });
+    return { success: true, message: `ส่งรายชื่อสื่อ (${links.length} รายการ) ขึ้น Google Sheets เรียบร้อยแล้ว!` };
+  } catch (e: any) {
+    return { success: false, message: 'เกิดข้อผิดพลาด: ' + (e.message || '') };
+  }
+}
+
+/**
+ * Pull links from Google Sheets
+ */
+export async function fetchLinksFromGoogleSheets(
+  webhookUrl: string
+): Promise<{ success: boolean; links?: ArcadeLink[]; message: string }> {
+  if (!webhookUrl || !webhookUrl.trim().startsWith('https://script.google.com/')) {
+    return { success: false, message: 'กรุณาระบุ Google Sheets Webhook URL ที่ถูกต้อง' };
+  }
+  try {
+    const fetchUrl = `${webhookUrl.trim()}${webhookUrl.includes('?') ? '&' : '?'}action=get_links&t=${Date.now()}`;
+    const res = await fetch(fetchUrl);
+    if (!res.ok) {
+      return { success: false, message: `เกิดข้อผิดพลาดในการเชื่อมต่อ (HTTP ${res.status})` };
+    }
+    const data = await res.json();
+    if (data && data.links && Array.isArray(data.links)) {
+      return { success: true, links: data.links, message: `ดึงข้อมูลสำเร็จ (${data.links.length} รายการ)` };
+    }
+    return { success: false, message: data.message || 'ไม่พบรายการสื่อใน Google Sheets' };
+  } catch (e: any) {
+    return { success: false, message: 'ไม่สามารถดึงข้อมูลได้: ' + (e.message || 'โปรดตรวจสอบสิทธิ์การเข้าถึง Web App') };
+  }
+}
+
+/**
+ * Check Link Health (URL validation and hints)
+ */
+export function checkLinkHealth(url?: string, target?: string): { status: 'healthy' | 'warning' | 'error'; label: string } {
+  if (!url || !url.trim()) {
+    return { status: 'error', label: 'ไม่มี URL' };
+  }
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    if (parsed.protocol === 'http:') {
+      return { status: 'warning', label: 'HTTP ธรรมดา (ควรเปลี่ยนเป็น HTTPS)' };
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (
+      target === '_self' &&
+      (host.includes('facebook.com') ||
+        host.includes('instagram.com') ||
+        host.includes('tiktok.com') ||
+        host.includes('twitter.com') ||
+        host.includes('x.com'))
+    ) {
+      return { status: 'warning', label: 'โซเชียลมีเดียอาจบล็อก Iframe (ควรเลือกเปิดใหม่)' };
+    }
+    return { status: 'healthy', label: 'ลิงก์ปกติ' };
+  } catch (e) {
+    return { status: 'error', label: 'รูปแบบ URL ไม่ถูกต้อง' };
   }
 }

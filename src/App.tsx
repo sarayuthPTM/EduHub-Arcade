@@ -14,6 +14,7 @@ import { InteractiveToolModal } from './components/InteractiveToolModal';
 import { PinLockModal } from './components/PinLockModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminPanel } from './components/AdminPanel';
+import { HeroBannerCarousel } from './components/HeroBannerCarousel';
 
 export const App: React.FC = () => {
   const [links, setLinks] = useState<ArcadeLink[]>(() => loadArcadeLinks());
@@ -210,6 +211,9 @@ export const App: React.FC = () => {
             <span className="hidden sm:inline">ผู้ดูแลระบบ</span>
           </button>
         </header>
+
+        {/* Hero Banner Carousel */}
+        <HeroBannerCarousel banners={settings.banners} />
 
         {/* Search & Category Filter Section */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-10">

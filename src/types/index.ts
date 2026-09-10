@@ -10,6 +10,16 @@ export interface ArcadeLink {
   status: 'เปิด' | 'ปิด';
   target: '_self' | '_blank';
   access: 'ทั่วไป' | 'ล็อก PIN';
+  badge?: string; // e.g. 'มาใหม่', 'ยอดนิยม', 'แนะนำ', 'ประถม', 'ม.ต้น', 'ม.ปลาย'
+}
+
+export interface BannerItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  linkUrl?: string;
+  active: boolean;
 }
 
 export interface SiteSettings {
@@ -24,6 +34,16 @@ export interface SiteSettings {
   userPin: string;
   googleSheetsWebhookUrl?: string;
   categoryOrder?: string[];
+  banners?: BannerItem[];
+}
+
+export interface ActivityLog {
+  id: string;
+  toolName: string;
+  category: string;
+  time: string;
+  date: string;
+  timestamp: number;
 }
 
 export interface ActivityStat {

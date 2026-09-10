@@ -27,16 +27,36 @@ export const ArcadeCard: React.FC<ArcadeCardProps> = ({ link, onOpen }) => {
           {/* Subtle bottom gradient blending into dark card body */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#161f36] via-transparent to-transparent opacity-90 pointer-events-none" />
 
-          {/* Top Left Indicator (Open in new icon like in original sample) */}
-          <div className="absolute top-3.5 left-3.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md text-slate-500 group-hover:text-indigo-600 transition-colors">
+          {/* Top Left Indicator (Open in new icon) & Badge */}
+          <div className="absolute top-3.5 left-3.5 flex items-center gap-1.5 z-10">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/30 backdrop-blur-md text-slate-400 group-hover:text-indigo-400 transition-colors">
               <ExternalLink className="h-4 w-4" />
             </span>
+
+            {link.badge && (
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-md backdrop-blur-md border ${
+                link.badge.includes('ยอดนิยม') || link.badge.toLowerCase().includes('hot')
+                  ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white border-rose-400/40'
+                  : link.badge.includes('มาใหม่') || link.badge.toLowerCase().includes('new')
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white border-purple-400/40'
+                  : link.badge.includes('แนะนำ')
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-400/40'
+                  : link.badge.includes('ประถม')
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-400/40'
+                  : link.badge.includes('ม.ต้น')
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-400/40'
+                  : link.badge.includes('ม.ปลาย')
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-700 text-white border-indigo-400/40'
+                  : 'bg-slate-900/85 text-indigo-300 border-indigo-500/30'
+              }`}>
+                {link.badge}
+              </span>
+            )}
           </div>
 
           {/* Top Right Locked Indicator */}
           {isLocked && (
-            <div className="absolute top-3.5 right-3.5">
+            <div className="absolute top-3.5 right-3.5 z-10">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-lg backdrop-blur-md">
                 <Lock className="h-3.5 w-3.5" />
               </span>
@@ -45,8 +65,23 @@ export const ArcadeCard: React.FC<ArcadeCardProps> = ({ link, onOpen }) => {
         </div>
       ) : (
         <div className="p-6 pb-2 flex items-center justify-between">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
-            <Gamepad2 className="h-7 w-7" />
+          <div className="flex items-center gap-2">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-105 transition-transform">
+              <Gamepad2 className="h-7 w-7" />
+            </div>
+            {link.badge && (
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-md border ${
+                link.badge.includes('ยอดนิยม')
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  : link.badge.includes('มาใหม่')
+                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                  : link.badge.includes('แนะนำ')
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+              }`}>
+                {link.badge}
+              </span>
+            )}
           </div>
           {isLocked && (
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-lg">
