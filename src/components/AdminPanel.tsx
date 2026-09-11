@@ -517,6 +517,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleUploadLogo = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      if (base64) {
+        setFormSettings((prev) => ({ ...prev, logoUrl: base64 }));
+        showNotice('อัปโหลดรูป Logo จากเครื่องเรียบร้อยแล้ว!');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Filtered stats based on active timeRange
   const filteredStatsData = getFilteredStats(timeRange);
   const stats = filteredStatsData.stats;
@@ -1805,14 +1817,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">ลิงก์รูปภาพ Logo</label>
-                <input
-                  type="text"
-                  value={formSettings.logoUrl || ''}
-                  onChange={(e) => setFormSettings({ ...formSettings, logoUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs"
-                />
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  รูปภาพ Logo โรงเรียน / ระบบ
+                </label>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  {/* Logo Preview Thumbnail */}
+                  <div className="h-12 w-12 rounded-2xl border-2 border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                    {formSettings.logoUrl ? (
+                      <img
+                        src={formSettings.logoUrl}
+                        alt="logo preview"
+                        className="h-full w-full object-contain p-1"
+                      />
+                    ) : (
+                      <span className="text-xl">🏫</span>
+                    )}
+                  </div>
+
+                  {/* URL Input & Upload Button */}
+                  <div className="flex-1 w-full flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={formSettings.logoUrl || ''}
+                      onChange={(e) => setFormSettings({ ...formSettings, logoUrl: e.target.value })}
+                      placeholder="https://... หรือกดปุ่มอัปโหลดรูปจากเครื่อง"
+                      className="flex-1 p-2.5 border border-slate-300 rounded-xl text-xs bg-white font-mono text-slate-600"
+                    />
+
+                    {/* Upload from Computer Button */}
+                    <label className="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-xs active:scale-95">
+                      <Upload className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>อัปโหลดรูป</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleUploadLogo(e.target.files[0]);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {formSettings.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormSettings((prev) => ({ ...prev, logoUrl: '' }));
+                          showNotice('ลบรูป Logo เรียบร้อยแล้ว (จะใช้ไอคอนค่าเริ่มต้น)');
+                        }}
+                        className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition shrink-0"
+                        title="ลบรูป Logo (ใช้ไอคอนค่าเริ่มต้น)"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  💡 สามารถกดปุ่ม "อัปโหลดรูป" เพื่อเลือกไฟล์ภาพจากคอมพิวเตอร์ (PNG, JPG, SVG, WebP) หรือวางลิงก์รูปภาพโดยตรงก็ได้
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
