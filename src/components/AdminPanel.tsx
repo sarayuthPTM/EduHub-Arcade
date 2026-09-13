@@ -52,6 +52,8 @@ import {
   checkLinkHealth,
 } from '../lib/arcade-service';
 import { GOOGLE_APPS_SCRIPT_BACKEND_CODE } from '../lib/google-apps-script-code';
+import { compressImageFile } from '../lib/image-compressor';
+import { compressSettingsImages } from '../lib/settings-service';
 
 Chart.register(...registerables);
 
@@ -92,6 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const chartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
@@ -478,15 +481,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     onUpdateSettings({ ...formSettings, banners: list });
   };
 
-  const handleBannerImageUpload = (bannerId: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      if (base64) {
-        handleUpdateBanner(bannerId, { imageUrl: base64 });
+  const handleBannerImageUpload = async (bannerId: string, file: File) => {
+    try {
+      setIsProcessingImage(true);
+      showNotice('กำลังประมวลผลและปรับขนาดภาพแบนเนอร์...');
+      const optimizedBase64 = await compressImageFile(file, {
+        maxWidth: 1280,
+        maxHeight: 480,
+        quality: 0.82,
+        mimeType: 'image/jpeg',
+      });
+      if (optimizedBase64) {
+        handleUpdateBanner(bannerId, { imageUrl: optimizedBase64 });
+        showNotice('อัปโหลดและปรับขนาดภาพแบนเนอร์เรียบร้อยแล้ว! อย่าลืมกด "บันทึกแบนเนอร์"');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error processing banner image:', err);
+      showNotice('เกิดข้อผิดพลาดในการประมวลผลภาพ');
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleSaveBanners = async () => {
+    try {
+      setIsProcessingImage(true);
+      showNotice('กำลังบันทึกข้อมูลแบนเนอร์...');
+      const cleanSettings = await compressSettingsImages(formSettings);
+      setFormSettings(cleanSettings);
+      onUpdateSettings(cleanSettings);
+      showNotice('บันทึกข้อมูลแบนเนอร์เรียบร้อยแล้ว! (บันทึกถาวรลงเครื่อง)');
+    } catch (e) {
+      console.error('Error saving banners:', e);
+      onUpdateSettings(formSettings);
+      showNotice('บันทึกข้อมูลแบนเนอร์เรียบร้อยแล้ว!');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleSaveLinks = () => {
@@ -495,10 +526,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     showNotice('บันทึกตารางสื่อการสอนและลำดับหมวดหมู่เรียบร้อยแล้ว!');
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateSettings(formSettings);
-    showNotice('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
+    try {
+      setIsProcessingImage(true);
+      showNotice('กำลังบันทึกการตั้งค่าระบบ...');
+      const cleanSettings = await compressSettingsImages(formSettings);
+      setFormSettings(cleanSettings);
+      onUpdateSettings(cleanSettings);
+      showNotice('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      onUpdateSettings(formSettings);
+      showNotice('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว!');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const showNotice = (msg: string) => {
@@ -506,27 +549,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setTimeout(() => setNotification(null), 3500);
   };
 
-  const handleUploadImage = (id: string, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      if (base64) {
-        handleUpdateRow(id, { coverImage: base64 });
+  const handleUploadImage = async (id: string, file: File) => {
+    try {
+      setIsProcessingImage(true);
+      showNotice('กำลังบีบอัดรูปภาพหน้าปก...');
+      const optimizedBase64 = await compressImageFile(file, {
+        maxWidth: 640,
+        maxHeight: 360,
+        quality: 0.80,
+        mimeType: 'image/jpeg',
+      });
+      if (optimizedBase64) {
+        handleUpdateRow(id, { coverImage: optimizedBase64 });
+        showNotice('อัปโหลดและปรับขนาดภาพหน้าปกเรียบร้อยแล้ว!');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error processing cover image:', err);
+      showNotice('เกิดข้อผิดพลาดในการประมวลผลภาพหน้าปก');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
-  const handleUploadLogo = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      if (base64) {
-        setFormSettings((prev) => ({ ...prev, logoUrl: base64 }));
-        showNotice('อัปโหลดรูป Logo จากเครื่องเรียบร้อยแล้ว!');
+  const handleUploadLogo = async (file: File) => {
+    try {
+      setIsProcessingImage(true);
+      showNotice('กำลังประมวลผลรูป Logo...');
+      const optimizedBase64 = await compressImageFile(file, {
+        maxWidth: 512,
+        maxHeight: 512,
+        quality: 0.85,
+        mimeType: file.type === 'image/png' ? 'image/png' : 'image/webp',
+      });
+      if (optimizedBase64) {
+        setFormSettings((prev) => ({ ...prev, logoUrl: optimizedBase64 }));
+        showNotice('อัปโหลดรูป Logo เรียบร้อยแล้ว! กดบันทึกการตั้งค่าเพื่อบันทึกถาวร');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error processing logo:', err);
+      showNotice('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ Logo');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   // Filtered stats based on active timeRange
@@ -1495,13 +1559,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    onUpdateSettings(formSettings);
-                    showNotice('บันทึกข้อมูลแบนเนอร์เรียบร้อยแล้ว!');
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer hover:shadow-md active:scale-95"
+                  onClick={handleSaveBanners}
+                  disabled={isProcessingImage}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer hover:shadow-md active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="h-4 w-4" /> 💾 บันทึกแบนเนอร์
+                  <Save className="h-4 w-4" /> {isProcessingImage ? 'กำลังบันทึก...' : '💾 บันทึกแบนเนอร์'}
                 </button>
               </div>
             </div>
@@ -1654,13 +1716,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <button
               type="button"
-              onClick={() => {
-                onUpdateSettings(formSettings);
-                showNotice('บันทึกข้อมูลแบนเนอร์เรียบร้อยแล้ว!');
-              }}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              onClick={handleSaveBanners}
+              disabled={isProcessingImage}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              <Save className="h-4 w-4" /> 💾 บันทึกแบนเนอร์ทั้งหมด
+              <Save className="h-4 w-4" /> {isProcessingImage ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกแบนเนอร์ทั้งหมด'}
             </button>
           </section>
         )}
@@ -2015,9 +2075,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition cursor-pointer active:scale-95"
+                disabled={isProcessingImage}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition cursor-pointer active:scale-95 disabled:opacity-50"
               >
-                💾 บันทึกการตั้งค่าระบบ
+                {isProcessingImage ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกการตั้งค่าระบบ'}
               </button>
             </form>
           </section>

@@ -1,5 +1,6 @@
 import { SiteSettings } from '../types';
 import { toolIllustrations } from './arcade-assets';
+import { compressBase64String } from './image-compressor';
 
 const SETTINGS_KEY = 'eduhub_arcade_settings';
 
@@ -35,6 +36,49 @@ export const defaultSettings: SiteSettings = {
   ],
 };
 
+export async function compressSettingsImages(settings: SiteSettings): Promise<SiteSettings> {
+  const newSettings = { ...settings };
+
+  // Compress logo if it is a large base64 image (> 50KB)
+  if (newSettings.logoUrl && newSettings.logoUrl.startsWith('data:image') && newSettings.logoUrl.length > 50 * 1024) {
+    try {
+      newSettings.logoUrl = await compressBase64String(newSettings.logoUrl, {
+        maxWidth: 512,
+        maxHeight: 512,
+        quality: 0.85,
+        mimeType: 'image/png',
+      });
+    } catch (e) {
+      console.warn('Failed to compress logoUrl:', e);
+    }
+  }
+
+  // Compress banners if they are large base64 images (> 80KB)
+  if (newSettings.banners && Array.isArray(newSettings.banners)) {
+    newSettings.banners = await Promise.all(
+      newSettings.banners.map(async (banner) => {
+        if (banner.imageUrl && banner.imageUrl.startsWith('data:image') && banner.imageUrl.length > 80 * 1024) {
+          try {
+            const compressed = await compressBase64String(banner.imageUrl, {
+              maxWidth: 1280,
+              maxHeight: 480,
+              quality: 0.82,
+              mimeType: 'image/jpeg',
+            });
+            return { ...banner, imageUrl: compressed };
+          } catch (e) {
+            console.warn('Failed to compress banner image:', e);
+            return banner;
+          }
+        }
+        return banner;
+      })
+    );
+  }
+
+  return newSettings;
+}
+
 export function loadSettings(): SiteSettings {
   try {
     const saved = localStorage.getItem(SETTINGS_KEY);
@@ -60,7 +104,23 @@ export function saveSettings(settings: SiteSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     syncSettingsToCloud(settings);
-  } catch (e) {}
+  } catch (e) {
+    console.warn('localStorage.setItem failed for settings, running auto-compress recovery...', e);
+    // Automatic recovery: compress images and retry
+    compressSettingsImages(settings)
+      .then((cleanSettings) => {
+        try {
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(cleanSettings));
+          syncSettingsToCloud(cleanSettings);
+          console.info('Settings saved successfully after automatic compression recovery.');
+        } catch (retryErr) {
+          console.error('Failed to save settings even after compression recovery:', retryErr);
+        }
+      })
+      .catch((err) => {
+        console.error('Error during settings compression recovery:', err);
+      });
+  }
 }
 
 export async function syncSettingsToCloud(settings: SiteSettings): Promise<boolean> {
@@ -79,3 +139,4 @@ export async function syncSettingsToCloud(settings: SiteSettings): Promise<boole
     return false;
   }
 }
+
