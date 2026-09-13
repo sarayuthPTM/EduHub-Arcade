@@ -16,7 +16,7 @@ export async function compressImageFile(
   file: File,
   options: CompressOptions = {}
 ): Promise<string> {
-  // If it's an SVG, it's already vector and small, just read as data URL
+  // If it's an SVG, it's already vector, just read as data URL
   if (file.type === 'image/svg+xml') {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -26,21 +26,82 @@ export async function compressImageFile(
     });
   }
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = (e) => {
-      const rawDataUrl = e.target?.result as string;
-      if (!rawDataUrl) {
-        resolve('');
+  const {
+    maxWidth = 1280,
+    maxHeight = 720,
+    quality = 0.82,
+    mimeType = 'image/jpeg',
+  } = options;
+
+  return new Promise((resolve) => {
+    // URL.createObjectURL is fast and avoids converting huge files to string first
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width <= 0 || height <= 0) {
+        fallbackFileReader(file, resolve);
         return;
       }
-      compressBase64String(rawDataUrl, options)
-        .then(resolve)
-        .catch(() => resolve(rawDataUrl)); // Fallback to raw if compression fails
+
+      // Constrain dimensions while preserving aspect ratio
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      if (height > maxHeight) {
+        width = Math.round((width * maxHeight) / height);
+        height = maxHeight;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        fallbackFileReader(file, resolve);
+        return;
+      }
+
+      // White background for JPEG to handle PNG transparency cleanly
+      if (mimeType === 'image/jpeg') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+
+      try {
+        const compressed = canvas.toDataURL(mimeType, quality);
+        resolve(compressed);
+      } catch (err) {
+        console.warn('Canvas toDataURL failed, falling back:', err);
+        fallbackFileReader(file, resolve);
+      }
     };
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      fallbackFileReader(file, resolve);
+    };
+
+    img.src = objectUrl;
   });
+}
+
+function fallbackFileReader(file: File, resolve: (res: string) => void) {
+  const reader = new FileReader();
+  reader.onload = (e) => resolve((e.target?.result as string) || '');
+  reader.onerror = () => resolve('');
+  reader.readAsDataURL(file);
 }
 
 export async function compressBase64String(
@@ -66,7 +127,6 @@ export async function compressBase64String(
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
 
     img.onload = () => {
       let width = img.width;
@@ -77,7 +137,6 @@ export async function compressBase64String(
         return;
       }
 
-      // Calculate constrained dimensions while preserving aspect ratio
       if (width > maxWidth) {
         height = Math.round((height * maxWidth) / width);
         width = maxWidth;
@@ -97,20 +156,17 @@ export async function compressBase64String(
         return;
       }
 
-      // Fill white background for JPEGs to prevent black backgrounds on transparent PNGs
       if (mimeType === 'image/jpeg') {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Smooth downscaling
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
       try {
         const compressed = canvas.toDataURL(mimeType, quality);
-        // Only use compressed if it's smaller than original
         if (compressed.length < dataUrl.length || dataUrl.length > 500 * 1024) {
           resolve(compressed);
         } else {
@@ -125,6 +181,7 @@ export async function compressBase64String(
       resolve(dataUrl);
     };
 
+    // Notice: NO crossOrigin on data: URLs
     img.src = dataUrl;
   });
 }

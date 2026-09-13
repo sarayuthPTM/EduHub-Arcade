@@ -1,16 +1,16 @@
-import { SiteSettings } from '../types';
+import { SiteSettings, BannerItem } from '../types';
 import { toolIllustrations } from './arcade-assets';
 import { compressBase64String } from './image-compressor';
 
 const SETTINGS_KEY = 'eduhub_arcade_settings';
 
 export const defaultSettings: SiteSettings = {
-  schoolName: 'โรงเรียนของฉัน',
+  schoolName: 'โรงเรียนกาญจนาภิเษกวิทยาลัย กระบี่',
   topbarTitle: 'EduHub Arcade 🎮',
   logoUrl: toolIllustrations.schoolLogo,
-  announcement: 'ยินดีต้อนรับสู่คลังสื่อการสอนและเกมอิเล็กทรอนิกส์!',
+  announcement: 'ยินดีต้อนรับสู่คลังสื่อการสอนและเกมอิเล็กทรอนิกส์ โรงเรียนกาญจนาภิเษกวิทยาลัย กระบี่!',
   tickerSpeed: 25,
-  footerText: '© 2026 EduHub Arcade • คลังสื่อการสอนและเกมอิเล็กทรอนิกส์สำหรับครู',
+  footerText: '© 2026 EduHub Arcade • โรงเรียนกาญจนาภิเษกวิทยาลัย กระบี่',
   themeColor: '#4f46e5',
   adminPin: '1234',
   userPin: '9999',
@@ -20,8 +20,8 @@ export const defaultSettings: SiteSettings = {
     {
       id: 'banner-1',
       title: 'ยินดีต้อนรับสู่ EduHub Arcade',
-      subtitle: 'คลังสื่อการสอนและเกมการเรียนรู้ออนไลน์สำหรับครูและนักเรียน',
-      imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&auto=format&fit=crop&q=80',
+      subtitle: 'คลังสื่อการสอนและเกมการเรียนรู้ออนไลน์ โรงเรียนกาญจนาภิเษกวิทยาลัย กระบี่',
+      imageUrl: '/banners/school-banner-1.jpg',
       linkUrl: '',
       active: true,
     },
@@ -61,7 +61,7 @@ export async function compressSettingsImages(settings: SiteSettings): Promise<Si
           try {
             const compressed = await compressBase64String(banner.imageUrl, {
               maxWidth: 1280,
-              maxHeight: 480,
+              maxHeight: 720,
               quality: 0.82,
               mimeType: 'image/jpeg',
             });
@@ -91,8 +91,20 @@ export function loadSettings(): SiteSettings {
     if (!merged.categoryOrder || !Array.isArray(merged.categoryOrder) || merged.categoryOrder.length === 0) {
       merged.categoryOrder = ['เครื่องมือครู', 'เกมเพื่อการเรียนรู้'];
     }
-    if (!merged.banners || !Array.isArray(merged.banners)) {
+    if (!merged.banners || !Array.isArray(merged.banners) || merged.banners.length === 0) {
       merged.banners = defaultSettings.banners;
+    } else {
+      // Auto-migrate old unsplash placeholder to real school building banner
+      merged.banners = merged.banners.map((b: BannerItem) => {
+        if (b.imageUrl && b.imageUrl.includes('photo-1516321318423-f06f85e504b3')) {
+          return {
+            ...b,
+            imageUrl: '/banners/school-banner-1.jpg',
+            subtitle: b.subtitle || 'คลังสื่อการสอนและเกมการเรียนรู้ออนไลน์ โรงเรียนกาญจนาภิเษกวิทยาลัย กระบี่',
+          };
+        }
+        return b;
+      });
     }
     return merged;
   } catch (e) {
